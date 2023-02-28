@@ -1,15 +1,22 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const secp = require("ethereum-cryptography/secp256k1");
+const { keccak256 } = require("ethereum-cryptography/keccak");
+const {
+  utf8ToBytes,
+  hexToBytes,
+  toHex,
+} = require("ethereum-cryptography/utils");
 const port = 3042;
 
 app.use(cors());
 app.use(express.json());
 
 const balances = {
-  "0x1": 100,
-  "0x2": 50,
-  "0x3": 75,
+  "0xd496c6a7181c7652e4335f3b4f0b2eff8502dfc3": 100,
+  "0xd7a7353cf005f2e6ea046152acfd0ac8efcd44da": 50,
+  "0x5576d0c5d457fe57974b4445254536623d642064": 75,
 };
 
 app.get("/balance/:address", (req, res) => {
@@ -19,7 +26,18 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  const { sender, recipient, amount } = req.body;
+  const { recoveryBit, sender, recipient, amount } = req.body;
+  const signature = hexToBytes(req.body.signature);
+  console.log("signature", signature);
+  const hash = keccak256(utf8ToBytes(sender));
+  console.log("hash", hash);
+  const publicKey = secp.recoverPublicKey(hash, signature, recoveryBit);
+  console.log("publicKey", toHex(publicKey));
+  const isValid = secp.verify(signature, hash, publicKey);
+  console.log("isValid", isValid);
+  if (!isValid) {
+    res.status(403).send({ message: "Forbidden" });
+  }
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
